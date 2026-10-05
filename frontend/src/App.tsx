@@ -274,15 +274,14 @@ export default function App() {
       <header className="top">
         <div>
           <p className="eyebrow">DraftKings Classic</p>
-          <h1>Lineup Optimizer</h1>
+          <h1>Lineup</h1>
           <p className="sub">
-            Establish The Run floor / median / ceiling projections under a salary
-            cap.
+            Build lineups from ETR floor, median, and ceiling projections.
           </p>
         </div>
         <div className="top-actions">
           <label className="file-btn">
-            Upload ETR CSV
+            Upload CSV
             <input
               type="file"
               accept=".csv,text/csv"
@@ -291,7 +290,7 @@ export default function App() {
             />
           </label>
           <button type="button" className="ghost" disabled={busy} onClick={onSample}>
-            Load sample
+            Sample slate
           </button>
         </div>
       </header>
@@ -326,14 +325,26 @@ export default function App() {
             value={aggression}
             onChange={(e) => setAggression(Number(e.target.value))}
           />
-          <div className="presets">
-            <button type="button" onClick={() => setAggression(-0.25)}>
+          <div className="presets" role="group" aria-label="Aggression presets">
+            <button
+              type="button"
+              className={aggression === -0.25 ? 'active' : undefined}
+              onClick={() => setAggression(-0.25)}
+            >
               Cash
             </button>
-            <button type="button" onClick={() => setAggression(0)}>
+            <button
+              type="button"
+              className={aggression === 0 ? 'active' : undefined}
+              onClick={() => setAggression(0)}
+            >
               Balanced
             </button>
-            <button type="button" onClick={() => setAggression(0.75)}>
+            <button
+              type="button"
+              className={aggression === 0.75 ? 'active' : undefined}
+              onClick={() => setAggression(0.75)}
+            >
               GPP
             </button>
           </div>
@@ -390,15 +401,15 @@ export default function App() {
       <section className="pool">
         <div className="pool-head">
           <h2>
-            Player pool{' '}
+            Players{' '}
             <span>
-              {players.length ? `${filtered.length} shown / ${players.length}` : 'empty'}
+              {players.length ? `${filtered.length} of ${players.length}` : 'No slate loaded'}
             </span>
           </h2>
           <div className="pool-filters">
             <input
               type="search"
-              placeholder="Search name, team, opp"
+              placeholder="Search players"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -408,12 +419,12 @@ export default function App() {
             >
               {POSITIONS.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {p === 'ALL' ? 'All' : p}
                 </option>
               ))}
             </select>
             <span className="meta">
-              Locked {locked.size} · Excluded {excluded.size}
+              {locked.size} locked · {excluded.size} out
             </span>
           </div>
         </div>
@@ -477,7 +488,7 @@ export default function App() {
               {!filtered.length && (
                 <tr>
                   <td colSpan={12} className="empty">
-                    Upload an ETR Main Slate CSV or load the sample to begin.
+                    Upload an ETR CSV or load the sample slate to begin.
                   </td>
                 </tr>
               )}
@@ -497,7 +508,7 @@ export default function App() {
         </div>
 
         {!lineups.length && (
-          <p className="empty-copy">Optimized lineups will appear here.</p>
+          <p className="empty-copy">Your optimized lineups will show up here.</p>
         )}
 
         <div className="lineup-grid">
