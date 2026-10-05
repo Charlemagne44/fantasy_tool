@@ -5,14 +5,15 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .csv_parser import CsvParseError, parse_etr_csv
 from .models import OptimizeRequest, OptimizeResponse, PlayersResponse
 from .optimizer import OptimizeError, optimize_lineups
 
-SAMPLE_CSV = (
-    Path(__file__).resolve().parents[2] / "sample_data" / "etr_dk_main_slate.csv"
-)
+ROOT = Path(__file__).resolve().parents[2]
+SAMPLE_CSV = ROOT / "sample_data" / "etr_dk_main_slate.csv"
+DIST_DIR = ROOT / "frontend" / "dist"
 
 app = FastAPI(title="Fantasy Lineup Optimizer", version="1.0.0")
 
@@ -75,3 +76,26 @@ def optimize(req: OptimizeRequest) -> OptimizeResponse:
         salary_cap=req.salary_cap,
         aggression=req.aggression,
     )
+
+
+if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/")
+    def spa_index() -> FileResponse:
+        return FileResponse(DIST_DIR / "index.html")
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str) -> FileResponse:
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = (DIST_DIR / full_path).resolve()
+        try:
+            candidate.relative_to(DIST_DIR.resolve())
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Not found") from exc
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(DIST_DIR / "index.html")
