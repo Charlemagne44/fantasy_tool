@@ -116,13 +116,53 @@ def ensure_python_deps() -> None:
     MARKER.write_text("ok\n", encoding="utf-8")
 
 
+def _newest_mtime(paths: list[Path]) -> float:
+    newest = 0.0
+    for path in paths:
+        if not path.exists():
+            continue
+        if path.is_file():
+            newest = max(newest, path.stat().st_mtime)
+            continue
+        for child in path.rglob("*"):
+            if child.is_file():
+                newest = max(newest, child.stat().st_mtime)
+    return newest
+
+
+def frontend_build_is_stale() -> bool:
+    index = DIST_DIR / "index.html"
+    if not index.exists():
+        return True
+    dist_mtime = index.stat().st_mtime
+    sources = [
+        FRONTEND_DIR / "src",
+        FRONTEND_DIR / "index.html",
+        FRONTEND_DIR / "package.json",
+        FRONTEND_DIR / "package-lock.json",
+        FRONTEND_DIR / "vite.config.ts",
+        FRONTEND_DIR / "tsconfig.json",
+        FRONTEND_DIR / "tsconfig.app.json",
+        FRONTEND_DIR / "tsconfig.node.json",
+    ]
+    return _newest_mtime(sources) > dist_mtime
+
+
 def ensure_frontend_build() -> None:
-    if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
+    if not frontend_build_is_stale():
         return
     ensure_node()
-    print("Installing frontend dependencies and building UI...")
     npm = "npm.cmd" if sys.platform == "win32" and which("npm.cmd") else "npm"
-    run([npm, "install"], cwd=FRONTEND_DIR)
+    node_modules = FRONTEND_DIR / "node_modules"
+    needs_install = not node_modules.exists() or (
+        (FRONTEND_DIR / "package-lock.json").exists()
+        and _newest_mtime([FRONTEND_DIR / "package.json", FRONTEND_DIR / "package-lock.json"])
+        > node_modules.stat().st_mtime
+    )
+    if needs_install:
+        print("Installing frontend dependencies...")
+        run([npm, "install"], cwd=FRONTEND_DIR)
+    print("Building UI...")
     run([npm, "run", "build"], cwd=FRONTEND_DIR)
     if not (DIST_DIR / "index.html").exists():
         fail("Frontend build finished but frontend/dist/index.html was not found.")
